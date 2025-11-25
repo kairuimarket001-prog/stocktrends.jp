@@ -1,41 +1,85 @@
 import { StockPrice } from '../types/stock';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface ScrollingHistoryDataProps {
   prices: StockPrice[];
   stockName: string;
 }
 
+const ITEM_HEIGHT = 85;
+const ANIMATION_DURATION = 600;
+const PAUSE_DURATION = 1500;
+
 export default function ScrollingHistoryData({ prices, stockName }: ScrollingHistoryDataProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [translateY, setTranslateY] = useState(0);
+  const [enableTransition, setEnableTransition] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (prices.length <= 1) return;
-
-    const interval = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % prices.length);
-        setIsAnimating(false);
-      }, 600);
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [prices.length]);
-
-  if (prices.length === 0) {
-    return null;
-  }
-
-  const getVisiblePrices = (startIndex: number) => [
-    prices[startIndex % prices.length],
-    prices[(startIndex + 1) % prices.length],
-    prices[(startIndex + 2) % prices.length]
+  const getPlaceholderData = (): StockPrice[] => [
+    {
+      date: '取得中...',
+      open: '---',
+      high: '---',
+      low: '---',
+      close: '---',
+      volume: '---',
+      change: '0.0',
+      changePercent: '0.00',
+      per: 'N/A',
+      pbr: 'N/A',
+      dividend: 'N/A',
+      code: '----',
+    },
+    {
+      date: '取得中...',
+      open: '---',
+      high: '---',
+      low: '---',
+      close: '---',
+      volume: '---',
+      change: '0.0',
+      changePercent: '0.00',
+      per: 'N/A',
+      pbr: 'N/A',
+      dividend: 'N/A',
+      code: '----',
+    },
+    {
+      date: '取得中...',
+      open: '---',
+      high: '---',
+      low: '---',
+      close: '---',
+      volume: '---',
+      change: '0.0',
+      changePercent: '0.00',
+      per: 'N/A',
+      pbr: 'N/A',
+      dividend: 'N/A',
+      code: '----',
+    },
   ];
 
-  const visiblePrices = getVisiblePrices(currentIndex);
-  const nextPrices = getVisiblePrices(currentIndex + 1);
+  const displayPrices = prices.length >= 3 ? prices : getPlaceholderData();
+  const shouldAnimate = prices.length >= 3;
+
+  useEffect(() => {
+    if (!shouldAnimate) return;
+
+    const interval = setInterval(() => {
+      setEnableTransition(true);
+      setTranslateY(-ITEM_HEIGHT);
+
+      setTimeout(() => {
+        setEnableTransition(false);
+        setTranslateY(0);
+        setCurrentIndex((prev) => (prev + 1) % displayPrices.length);
+      }, ANIMATION_DURATION);
+    }, PAUSE_DURATION);
+
+    return () => clearInterval(interval);
+  }, [shouldAnimate, displayPrices.length]);
 
   const formatChange = (change: string, changePercent: string) => {
     const changeNum = parseFloat(change);
@@ -44,6 +88,7 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
   };
 
   const formatDate = (dateString: string) => {
+    if (dateString === '取得中...') return dateString;
     const parts = dateString.split('/');
     if (parts.length === 3) {
       const month = parts[1];
@@ -53,12 +98,25 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
     return dateString;
   };
 
+  const getVisibleItems = () => {
+    const items = [];
+    for (let i = 0; i < 4; i++) {
+      const index = (currentIndex + i) % displayPrices.length;
+      items.push(displayPrices[index]);
+    }
+    return items;
+  };
+
   const renderPriceItem = (price: StockPrice, index: number) => {
     const changeNum = parseFloat(price.change);
     const changeColor = changeNum >= 0 ? '#c6e48b' : '#ff6b6b';
 
     return (
-      <div key={`${price.date}-${index}`} className="mb-3 last:mb-0">
+      <div
+        key={`${price.date}-${index}`}
+        className="flex-shrink-0"
+        style={{ height: `${ITEM_HEIGHT}px` }}
+      >
         <div className="text-white font-bold text-base mb-0.5">
           株-{price.code || stockName.slice(0, 4)} {formatDate(price.date)}
         </div>
@@ -74,30 +132,7 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
     );
   };
 
-  const renderGroup = (priceGroup: StockPrice[], position: 'current' | 'next') => {
-    const baseStyle = {
-      width: '70%',
-      transition: 'transform 0.6s ease-in-out, opacity 0.6s ease-in-out'
-    };
-
-    const itemHeight = 90;
-    const positionStyle = position === 'current'
-      ? (isAnimating
-          ? { transform: `translate(-50%, calc(-50% - ${itemHeight}px))`, opacity: 0 }
-          : { transform: 'translate(-50%, -50%)', opacity: 1 })
-      : (isAnimating
-          ? { transform: 'translate(-50%, -50%)', opacity: 1 }
-          : { transform: `translate(-50%, calc(-50% + ${itemHeight}px))`, opacity: 0 });
-
-    return (
-      <div
-        className="absolute top-1/2 left-1/2 text-center"
-        style={{ ...baseStyle, ...positionStyle }}
-      >
-        {priceGroup.map((price, idx) => renderPriceItem(price, idx))}
-      </div>
-    );
-  };
+  const visibleItems = getVisibleItems();
 
   return (
     <div className="px-4 py-6">
@@ -148,8 +183,25 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
               </svg>
             </div>
 
-            {renderGroup(visiblePrices, 'current')}
-            {prices.length > 1 && renderGroup(nextPrices, 'next')}
+            <div
+              className="absolute top-1/2 left-1/2 text-center"
+              style={{
+                width: '70%',
+                height: `${ITEM_HEIGHT * 3}px`,
+                transform: 'translate(-50%, -50%)',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                ref={containerRef}
+                style={{
+                  transform: `translateY(${translateY}px)`,
+                  transition: enableTransition ? `transform ${ANIMATION_DURATION}ms ease-in-out` : 'none',
+                }}
+              >
+                {visibleItems.map((price, idx) => renderPriceItem(price, idx))}
+              </div>
+            </div>
           </div>
         </div>
 

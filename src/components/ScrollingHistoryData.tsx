@@ -18,8 +18,8 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % prices.length);
         setIsAnimating(false);
-      }, 800);
-    }, 3000);
+      }, 600);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [prices.length]);
@@ -28,19 +28,14 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
     return null;
   }
 
-  // 获取当前显示的3个条目
-  const visiblePrices = [
-    prices[currentIndex % prices.length],
-    prices[(currentIndex + 1) % prices.length],
-    prices[(currentIndex + 2) % prices.length]
+  const getVisiblePrices = (startIndex: number) => [
+    prices[startIndex % prices.length],
+    prices[(startIndex + 1) % prices.length],
+    prices[(startIndex + 2) % prices.length]
   ];
 
-  // 获取下一组的3个条目（用于动画）
-  const nextPrices = [
-    prices[(currentIndex + 1) % prices.length],
-    prices[(currentIndex + 2) % prices.length],
-    prices[(currentIndex + 3) % prices.length]
-  ];
+  const visiblePrices = getVisiblePrices(currentIndex);
+  const nextPrices = getVisiblePrices(currentIndex + 1);
 
   const formatChange = (change: string, changePercent: string) => {
     const changeNum = parseFloat(change);
@@ -82,16 +77,17 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
   const renderGroup = (priceGroup: StockPrice[], position: 'current' | 'next') => {
     const baseStyle = {
       width: '70%',
-      transition: 'transform 0.8s ease-in-out, opacity 0.8s ease-in-out'
+      transition: 'transform 0.6s ease-in-out, opacity 0.6s ease-in-out'
     };
 
+    const itemHeight = 90;
     const positionStyle = position === 'current'
       ? (isAnimating
-          ? { transform: 'translate(-50%, -150%)', opacity: 0 }
+          ? { transform: `translate(-50%, calc(-50% - ${itemHeight}px))`, opacity: 0 }
           : { transform: 'translate(-50%, -50%)', opacity: 1 })
       : (isAnimating
           ? { transform: 'translate(-50%, -50%)', opacity: 1 }
-          : { transform: 'translate(-50%, 50%)', opacity: 0 });
+          : { transform: `translate(-50%, calc(-50% + ${itemHeight}px))`, opacity: 0 });
 
     return (
       <div

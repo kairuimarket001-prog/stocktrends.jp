@@ -49,10 +49,13 @@ export default function ScrollingHistoryData({ prices, stockName }: ScrollingHis
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}/${day}`;
+    const parts = dateString.split('/');
+    if (parts.length === 3) {
+      const month = parts[1];
+      const day = parts[2];
+      return `${parseInt(month)}/${parseInt(day)}`;
+    }
+    return dateString;
   };
 
   const renderPriceItem = (price: StockPrice, index: number) => {
